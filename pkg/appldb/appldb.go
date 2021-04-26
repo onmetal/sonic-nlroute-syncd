@@ -22,6 +22,11 @@ func New() *APPLDB {
 	}
 }
 
+// Test tests the handler
+func (a *APPLDB) Test() error {
+	return a.rc.Ping().Err()
+}
+
 // Close closes the DB connection
 func (a *APPLDB) Close() error {
 	return a.rc.Close()
