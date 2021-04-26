@@ -32,6 +32,6 @@ func main() {
 
 	err = applDB.Close()
 	if err != nil {
-		log.WithError(err).Panic("Unable to close Redis connection")
+		log.WithError(err).Fatal("Unable to close Redis connection")
 	}
 }
