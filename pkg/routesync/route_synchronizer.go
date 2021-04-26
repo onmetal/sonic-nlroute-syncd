@@ -15,6 +15,7 @@ import (
 // RouteSynchronizer consumes Netlink route messages and synchronizes them into the APPL_DB
 type RouteSynchronizer struct {
 	appldb *appldb.APPLDB
+	rc     chan netlink.RouteUpdate
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 }
@@ -22,6 +23,7 @@ type RouteSynchronizer struct {
 // New creates a new RouteSynchronizer
 func New(appldb *appldb.APPLDB) *RouteSynchronizer {
 	return &RouteSynchronizer{
+		rc:     make(chan netlink.RouteUpdate),
 		appldb: appldb,
 		stopCh: make(chan struct{}),
 	}
@@ -29,14 +31,13 @@ func New(appldb *appldb.APPLDB) *RouteSynchronizer {
 
 // Start starts the synchronizer
 func (rr *RouteSynchronizer) Start() error {
-	routesCh := make(chan netlink.RouteUpdate)
-	err := netlink.RouteSubscribe(routesCh, nil)
+	err := netlink.RouteSubscribe(rr.rc, nil)
 	if err != nil {
 		return errors.Wrap(err, "Unable to subscribe to netlink route updates")
 	}
 
 	rr.wg.Add(1)
-	go rr.run(routesCh)
+	go rr.run()
 
 	return nil
 }
@@ -44,6 +45,7 @@ func (rr *RouteSynchronizer) Start() error {
 // Stop stops the synchronizer and doesn't wait for it to actually stop
 func (rr *RouteSynchronizer) Stop() {
 	close(rr.stopCh)
+	close(rr.rc)
 }
 
 // StopAndWait stops the synchronizer and waits for it to actually stop
@@ -61,7 +63,7 @@ func (rr *RouteSynchronizer) stopped() bool {
 	}
 }
 
-func (rr *RouteSynchronizer) run(rc chan netlink.RouteUpdate) {
+func (rr *RouteSynchronizer) run() {
 	defer rr.wg.Done()
 
 	for {
@@ -69,7 +71,7 @@ func (rr *RouteSynchronizer) run(rc chan netlink.RouteUpdate) {
 			return
 		}
 
-		u := <-rc
+		u := <-rr.rc
 
 		if u.Dst != nil {
 			log.Warning("Ignored route update for non IP destination")
