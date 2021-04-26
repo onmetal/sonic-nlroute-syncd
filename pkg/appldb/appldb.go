@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// APPLDB represents the SONiC APPL_DB (0)
 type APPLDB struct {
 	rc *redis.Client
 }
@@ -19,6 +20,11 @@ func New() *APPLDB {
 			Addr: "localhost:6379",
 		}),
 	}
+}
+
+// Close closes the DB connection
+func (a *APPLDB) Close() error {
+	return a.rc.Close()
 }
 
 func (a *APPLDB) hsetMap(key string, kv map[string]string) error {
