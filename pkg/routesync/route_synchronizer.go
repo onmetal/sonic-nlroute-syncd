@@ -31,7 +31,7 @@ func New(appldb *appldb.APPLDB) *RouteSynchronizer {
 
 // Start starts the synchronizer
 func (rr *RouteSynchronizer) Start() error {
-	err := netlink.RouteSubscribe(rr.rc, nil)
+	err := netlink.RouteSubscribe(rr.rc, rr.stopCh)
 	if err != nil {
 		return errors.Wrap(err, "Unable to subscribe to netlink route updates")
 	}
