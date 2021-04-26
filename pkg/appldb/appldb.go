@@ -40,7 +40,7 @@ func (a *APPLDB) hsetMap(key string, kv map[string]string) error {
 	return nil
 }
 
-// AddRoute adds a route
+// AddRoute adds a route to the APPL_DB
 func (a *APPLDB) AddRoute(pfx net.IPNet, nexthops Nexthops) error {
 	pfxStr := pfx.String()
 
@@ -67,6 +67,7 @@ func (a *APPLDB) AddRoute(pfx net.IPNet, nexthops Nexthops) error {
 	return nil
 }
 
+// DelRoute deletes a route from the APPL_DB
 func (a *APPLDB) DelRoute(pfx net.IPNet) error {
 	pfxStr := pfx.String()
 

@@ -11,6 +11,7 @@ type Nexthop struct {
 	IfName  string
 }
 
+// Nexthops represents a set of Nexthop
 type Nexthops []Nexthop
 
 // IfNames gets the space separated list of interface names

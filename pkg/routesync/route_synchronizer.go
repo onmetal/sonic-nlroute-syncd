@@ -12,12 +12,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// RouteSynchronizer consumes Netlink route messages and synchronizes them into the APPL_DB
 type RouteSynchronizer struct {
 	appldb *appldb.APPLDB
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 }
 
+// New creates a new RouteSynchronizer
 func New(appldb *appldb.APPLDB) *RouteSynchronizer {
 	return &RouteSynchronizer{
 		appldb: appldb,
@@ -25,6 +27,7 @@ func New(appldb *appldb.APPLDB) *RouteSynchronizer {
 	}
 }
 
+// Start starts the synchronizer
 func (rr *RouteSynchronizer) Start() error {
 	routesCh := make(chan netlink.RouteUpdate)
 	err := netlink.RouteSubscribe(routesCh, nil)
@@ -38,10 +41,12 @@ func (rr *RouteSynchronizer) Start() error {
 	return nil
 }
 
+// Stop stops the synchronizer and doesn't wait for it to actually stop
 func (rr *RouteSynchronizer) Stop() {
 	close(rr.stopCh)
 }
 
+// StopAndWait stops the synchronizer and waits for it to actually stop
 func (rr *RouteSynchronizer) StopAndWait() {
 	rr.Stop()
 	rr.wg.Wait()
