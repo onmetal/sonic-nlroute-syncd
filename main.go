@@ -24,7 +24,7 @@ func main() {
 		log.WithError(err).Fatal("Unable to start route synchronizer")
 	}
 
-	sigs := make(chan os.Signal, 1)
+	sigs := make(chan os.Signal, 0)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 	<-sigs
