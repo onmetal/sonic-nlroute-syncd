@@ -14,18 +14,20 @@ import (
 
 // RouteSynchronizer consumes Netlink route messages and synchronizes them into the APPL_DB
 type RouteSynchronizer struct {
-	appldb *appldb.APPLDB
-	rc     chan netlink.RouteUpdate
-	stopCh chan struct{}
-	wg     sync.WaitGroup
+	appldb         *appldb.APPLDB
+	rc             chan netlink.RouteUpdate
+	stopCh         chan struct{}
+	wg             sync.WaitGroup
+	ifNameResolver ifNameResolver
 }
 
 // New creates a new RouteSynchronizer
 func New(appldb *appldb.APPLDB) *RouteSynchronizer {
 	return &RouteSynchronizer{
-		rc:     make(chan netlink.RouteUpdate),
-		appldb: appldb,
-		stopCh: make(chan struct{}),
+		rc:             make(chan netlink.RouteUpdate),
+		appldb:         appldb,
+		stopCh:         make(chan struct{}),
+		ifNameResolver: &ifNameResolverNetlink{},
 	}
 }
 
@@ -90,7 +92,7 @@ func (rr *RouteSynchronizer) run() {
 }
 
 func (rr *RouteSynchronizer) addRoute(r *netlink.Route) {
-	nexthops, err := getNexthops(r)
+	nexthops, err := rr.getNexthops(r)
 	if err != nil {
 		log.WithError(err).Error("Unable to get nexthops")
 		return
@@ -111,16 +113,16 @@ func (rr *RouteSynchronizer) delRoute(dst net.IPNet) {
 	}
 }
 
-func getNexthops(r *netlink.Route) (appldb.Nexthops, error) {
+func (rr *RouteSynchronizer) getNexthops(r *netlink.Route) (appldb.Nexthops, error) {
 	if r.Gw != nil {
-		return getNexthopsMonopath(r)
+		return rr.getNexthopsMonopath(r)
 	}
 
-	return getNexthopsMultipath(r)
+	return rr.getNexthopsMultipath(r)
 }
 
-func getNexthopsMonopath(r *netlink.Route) (appldb.Nexthops, error) {
-	ifa, err := net.InterfaceByIndex(r.LinkIndex)
+func (rr *RouteSynchronizer) getNexthopsMonopath(r *netlink.Route) (appldb.Nexthops, error) {
+	ifaName, err := rr.ifNameResolver.ifNameByIndex(r.LinkIndex)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to get interface by index")
 	}
@@ -128,21 +130,21 @@ func getNexthopsMonopath(r *netlink.Route) (appldb.Nexthops, error) {
 	return appldb.Nexthops{
 		{
 			Nexthop: r.Gw,
-			IfName:  ifa.Name,
+			IfName:  ifaName,
 		},
 	}, nil
 }
 
-func getNexthopsMultipath(r *netlink.Route) (appldb.Nexthops, error) {
+func (rr *RouteSynchronizer) getNexthopsMultipath(r *netlink.Route) (appldb.Nexthops, error) {
 	nexthops := make(appldb.Nexthops, len(r.MultiPath))
 
 	for i := 0; i < len(r.MultiPath); i++ {
-		ifa, err := net.InterfaceByIndex(r.MultiPath[i].LinkIndex)
+		ifaName, err := rr.ifNameResolver.ifNameByIndex(r.LinkIndex)
 		if err != nil {
 			return nil, errors.Wrap(err, "Unable to get interface by index")
 		}
 
-		nexthops[i].IfName = ifa.Name
+		nexthops[i].IfName = ifaName
 		nexthops[i].Nexthop = r.MultiPath[i].Gw
 	}
 
