@@ -98,6 +98,10 @@ func (rr *RouteSynchronizer) addRoute(r *netlink.Route) {
 		return
 	}
 
+	if nexthops == nil {
+		return
+	}
+
 	err = rr.appldb.AddRoute(*r.Dst, nexthops)
 	if err != nil {
 		log.WithError(err).Error("Unable to add route")
@@ -114,6 +118,10 @@ func (rr *RouteSynchronizer) delRoute(dst net.IPNet) {
 }
 
 func (rr *RouteSynchronizer) getNexthops(r *netlink.Route) (appldb.Nexthops, error) {
+	if r.Gw == nil && r.MultiPath == nil {
+		return nil, nil
+	}
+
 	if r.Gw != nil {
 		return rr.getNexthopsMonopath(r)
 	}
