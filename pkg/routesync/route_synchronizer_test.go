@@ -83,6 +83,11 @@ func TestGetNexthops(t *testing.T) {
 			continue
 		}
 
+		if test.wantFail {
+			t.Errorf("Unexpected success for test %q", test.name)
+			continue
+		}
+
 		assert.Equal(t, test.expected, res, test.name)
 	}
 }
