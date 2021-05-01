@@ -1,103 +1,37 @@
 package main
 
 import (
-	"fmt"
-	"net"
+	"os"
+	"os/signal"
 	"syscall"
 
-	"github.com/go-redis/redis"
-	"github.com/vishvananda/netlink"
+	"github.com/onmetal/sonic-nlroute-syncd/pkg/appldb"
+	"github.com/onmetal/sonic-nlroute-syncd/pkg/routesync"
 
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	routesCh := make(chan netlink.RouteUpdate)
-
-	rc := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
-
-	err := netlink.RouteSubscribe(routesCh, nil)
+	applDB := appldb.New()
+	err := applDB.Test()
 	if err != nil {
-		log.WithError(err).Panic("Unable to subscribe to netlink route updates")
+		log.WithError(err).Fatal("Connection to APPL_DB failed")
 	}
 
-	for {
-		u := <-routesCh
-
-		fmt.Printf("Update type: %d\n", u.Type)
-		fmt.Printf("Route: %v\n", u)
-
-		if u.Type == syscall.RTM_NEWROUTE {
-			addRoute(rc, u.Route)
-			continue
-		}
-
-		if u.Type == syscall.RTM_DELROUTE {
-			delRoute(rc, u.Route)
-			continue
-		}
-
-	}
-}
-
-func addRoute(rc *redis.Client, u netlink.Route) {
-	pfxStr := u.Dst.String()
-	ifname, err := net.InterfaceByIndex(u.LinkIndex)
+	rtSync := routesync.New(applDB)
+	err = rtSync.Start()
 	if err != nil {
-		log.WithError(err).Error("Unable to get interface name")
+		log.WithError(err).Fatal("Unable to start route synchronizer")
 	}
 
-	err = rc.SAdd("ROUTE_TABLE_KEY_SET", pfxStr).Err()
-	if err != nil {
-		log.WithError(err).Error("Redis SADD call failed")
-		return
-	}
+	sigs := make(chan os.Signal, 0)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
-	err = rc.HSet(fmt.Sprintf("_ROUTE_TABLE:%s", pfxStr), "nexthop", u.Gw.String()).Err()
-	if err != nil {
-		log.WithError(err).Error("Redis HSET call failed")
-		return
-	}
+	<-sigs
+	rtSync.StopAndWait()
 
-	err = rc.HSet(fmt.Sprintf("_ROUTE_TABLE:%s", pfxStr), "ifname", ifname.Name).Err()
+	err = applDB.Close()
 	if err != nil {
-		log.WithError(err).Error("Redis HSET call failed")
-		return
-	}
-
-	err = rc.Publish("ROUTE_TABLE_CHANNEL", "G").Err()
-	if err != nil {
-		log.WithError(err).Error("Redis PUBLISH call failed")
-		return
-	}
-}
-
-func delRoute(rc *redis.Client, u netlink.Route) {
-	pfxStr := u.Dst.String()
-
-	err := rc.SAdd("ROUTE_TABLE_KEY_SET", pfxStr).Err()
-	if err != nil {
-		log.WithError(err).Error("Redis SADD call failed")
-		return
-	}
-
-	err = rc.SAdd("ROUTE_TABLE_DEL_SET", pfxStr).Err()
-	if err != nil {
-		log.WithError(err).Error("Redis SADD call failed")
-		return
-	}
-
-	err = rc.Del(fmt.Sprintf("_ROUTE_TABLE:%s", pfxStr)).Err()
-	if err != nil {
-		log.WithError(err).Error("Redis DEL call failed")
-		return
-	}
-
-	err = rc.Publish("ROUTE_TABLE_CHANNEL", "G").Err()
-	if err != nil {
-		log.WithError(err).Error("Redis PUBLISH call failed")
-		return
+		log.WithError(err).Fatal("Unable to close Redis connection")
 	}
 }
