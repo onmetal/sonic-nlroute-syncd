@@ -12,6 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const defaultTable = 254
+
 // RouteSynchronizer consumes Netlink route messages and synchronizes them into the APPL_DB
 type RouteSynchronizer struct {
 	appldb         *appldb.APPLDB
@@ -33,7 +35,9 @@ func New(appldb *appldb.APPLDB) *RouteSynchronizer {
 
 // Start starts the synchronizer
 func (rr *RouteSynchronizer) Start() error {
-	err := netlink.RouteSubscribe(rr.rc, rr.stopCh)
+	err := netlink.RouteSubscribeWithOptions(rr.rc, rr.stopCh, netlink.RouteSubscribeOptions{
+		ListExisting: true,
+	})
 	if err != nil {
 		return errors.Wrap(err, "Unable to subscribe to netlink route updates")
 	}
@@ -75,9 +79,15 @@ func (rr *RouteSynchronizer) run() {
 
 		u := <-rr.rc
 
-		if u.Dst != nil {
-			log.Warning("Ignored route update for non IP destination")
+		if u.Table != defaultTable {
 			continue
+		}
+
+		if u.Route.Dst == nil {
+			u.Route.Dst = &net.IPNet{
+				IP:   net.IPv4(0, 0, 0, 0),
+				Mask: net.IPv4Mask(0, 0, 0, 0),
+			}
 		}
 
 		switch u.Type {
@@ -118,11 +128,11 @@ func (rr *RouteSynchronizer) delRoute(dst net.IPNet) {
 }
 
 func (rr *RouteSynchronizer) getNexthops(r *netlink.Route) (appldb.Nexthops, error) {
-	if r.Gw == nil && r.MultiPath == nil {
+	/*if r.Gw == nil && r.MultiPath == nil {
 		return nil, nil
-	}
+	}*/
 
-	if r.Gw != nil {
+	if len(r.MultiPath) == 0 {
 		return rr.getNexthopsMonopath(r)
 	}
 
@@ -132,7 +142,7 @@ func (rr *RouteSynchronizer) getNexthops(r *netlink.Route) (appldb.Nexthops, err
 func (rr *RouteSynchronizer) getNexthopsMonopath(r *netlink.Route) (appldb.Nexthops, error) {
 	ifaName, err := rr.ifNameResolver.ifNameByIndex(r.LinkIndex)
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to get interface by index")
+		return nil, errors.Wrapf(err, "Unable to get interface by index (%d)", r.LinkIndex)
 	}
 
 	return appldb.Nexthops{
@@ -147,9 +157,9 @@ func (rr *RouteSynchronizer) getNexthopsMultipath(r *netlink.Route) (appldb.Next
 	nexthops := make(appldb.Nexthops, len(r.MultiPath))
 
 	for i := 0; i < len(r.MultiPath); i++ {
-		ifaName, err := rr.ifNameResolver.ifNameByIndex(r.LinkIndex)
+		ifaName, err := rr.ifNameResolver.ifNameByIndex(r.MultiPath[i].LinkIndex)
 		if err != nil {
-			return nil, errors.Wrap(err, "Unable to get interface by index")
+			return nil, errors.Wrapf(err, "Unable to get interface by index (%d)", r.LinkIndex)
 		}
 
 		nexthops[i].IfName = ifaName
