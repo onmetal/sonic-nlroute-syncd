@@ -128,10 +128,6 @@ func (rr *RouteSynchronizer) delRoute(dst net.IPNet) {
 }
 
 func (rr *RouteSynchronizer) getNexthops(r *netlink.Route) (appldb.Nexthops, error) {
-	/*if r.Gw == nil && r.MultiPath == nil {
-		return nil, nil
-	}*/
-
 	if len(r.MultiPath) == 0 {
 		return rr.getNexthopsMonopath(r)
 	}
