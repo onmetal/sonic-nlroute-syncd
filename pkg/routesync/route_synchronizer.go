@@ -8,15 +8,21 @@ import (
 	"github.com/onmetal/sonic-nlroute-syncd/pkg/appldb"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 
 	log "github.com/sirupsen/logrus"
 )
 
 const defaultTable = 254
 
+type APPLDB interface {
+	AddRoute(pfx net.IPNet, nexthops appldb.Nexthops) error
+	DelRoute(pfx net.IPNet) error
+}
+
 // RouteSynchronizer consumes Netlink route messages and synchronizes them into the APPL_DB
 type RouteSynchronizer struct {
-	appldb         *appldb.APPLDB
+	appldb         APPLDB
 	rc             chan netlink.RouteUpdate
 	stopCh         chan struct{}
 	wg             sync.WaitGroup
@@ -24,7 +30,7 @@ type RouteSynchronizer struct {
 }
 
 // New creates a new RouteSynchronizer
-func New(appldb *appldb.APPLDB) *RouteSynchronizer {
+func New(appldb APPLDB) *RouteSynchronizer {
 	return &RouteSynchronizer{
 		rc:             make(chan netlink.RouteUpdate),
 		appldb:         appldb,
@@ -84,10 +90,32 @@ func (rr *RouteSynchronizer) run() {
 		}
 
 		if u.Route.Dst == nil {
-			u.Route.Dst = &net.IPNet{
-				IP:   net.IPv4(0, 0, 0, 0),
-				Mask: net.IPv4Mask(0, 0, 0, 0),
+			switch u.Route.Family {
+			case unix.NFPROTO_IPV4:
+				u.Route.Dst = &net.IPNet{
+					IP:   net.IPv4(0, 0, 0, 0),
+					Mask: net.IPv4Mask(0, 0, 0, 0),
+				}
+			case unix.NFPROTO_IPV6:
+				u.Route.Dst = &net.IPNet{
+					IP:   net.IP([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
+					Mask: net.IPMask([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
+				}
+			default:
+				continue
 			}
+		}
+
+		if u.Route.Gw == nil {
+			switch u.Route.Family {
+			case unix.NFPROTO_IPV4:
+				u.Route.Gw = net.IPv4(0, 0, 0, 0)
+			case unix.NFPROTO_IPV6:
+				u.Route.Gw = net.IP([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+			default:
+				continue
+			}
+
 		}
 
 		switch u.Type {

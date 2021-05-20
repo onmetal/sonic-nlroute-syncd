@@ -12,3 +12,7 @@ require (
 	github.com/vishvananda/netlink v1.1.0
 	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
 )
+
+replace (
+	github.com/vishvananda/netlink => github.com/taktv6/netlink v1.1.1-0.20210519175051-ac6e361bed8f
+)

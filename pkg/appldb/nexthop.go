@@ -22,7 +22,7 @@ func (n *Nexthops) IfNames() string {
 		ifNames[i] = (*n)[i].IfName
 	}
 
-	return strings.Join(ifNames, " ")
+	return strings.Join(ifNames, ",")
 }
 
 // Nexthops gets the space separated list of nexthops
@@ -33,5 +33,5 @@ func (n *Nexthops) Nexthops() string {
 		nexthops[i] = (*n)[i].Nexthop.String()
 	}
 
-	return strings.Join(nexthops, " ")
+	return strings.Join(nexthops, ",")
 }
