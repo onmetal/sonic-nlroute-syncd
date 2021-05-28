@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,9 +18,6 @@ func main() {
 		log.WithError(err).Fatal("Connection to APPL_DB failed")
 	}
 
-	/*applDB := &appldbMock{}
-	var err error*/
-
 	rtSync := routesync.New(applDB)
 	err = rtSync.Start()
 	if err != nil {
@@ -39,24 +34,4 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Unable to close Redis connection")
 	}
-}
-
-type appldbMock struct{}
-
-func (a *appldbMock) AddRoute(pfx net.IPNet, nexthops appldb.Nexthops) error {
-	fmt.Printf("Adding Route: %s\n", pfx.String())
-	for _, nh := range nexthops {
-		fmt.Printf("NH: %s / %s\n", nh.Nexthop.String(), nh.IfName)
-	}
-
-	return nil
-}
-
-func (a *appldbMock) DelRoute(pfx net.IPNet) error {
-	fmt.Printf("Deleting Route: %s\n", pfx.String())
-	return nil
-}
-
-func (a *appldbMock) Close() error {
-	return nil
 }
