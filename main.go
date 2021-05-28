@@ -48,7 +48,7 @@ func (a *appldbMock) AddRoute(pfx net.IPNet, nexthops appldb.Nexthops) error {
 	for _, nh := range nexthops {
 		fmt.Printf("NH: %s / %s\n", nh.Nexthop.String(), nh.IfName)
 	}
-
+	x
 	return nil
 }
 
