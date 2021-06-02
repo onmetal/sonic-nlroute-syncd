@@ -1,22 +1,12 @@
-FROM golang:alpine
+FROM golang as builder
+ADD . /go/sonic-nlroute-syncd/
+WORKDIR /go/sonic-nlroute-syncd
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/bin/sonic-nlroute-syncd
 
-ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates bash
+WORKDIR /app
+COPY --from=builder /go/bin/sonic-nlroute-syncd .
+EXPOSE 9324
 
-WORKDIR /build
-
-COPY go.mod .
-COPY go.sum .
-RUN go mod download
-
-COPY . .
-
-RUN go build -o sonic-nlroute-syncd .
-
-WORKDIR /dist
-
-RUN cp /build/sonic-nlroute-syncd .
-
-CMD ["/dist/sonic-nlroute-syncd"]
+ENTRYPOINT ["/app/sonic-nlroute-syncd"]
