@@ -66,11 +66,11 @@ func New(appldb APPLDB) *RouteSynchronizer {
 			Help: "The total number getNexthops() fails",
 		}),
 		appldbAddFailures: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_appld_add_failures",
+			Name: "nlroute_syncd_appl_db_add_failures",
 			Help: "The total number APPL_DB add fails",
 		}),
 		appldbDeleteFailures: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_appld_delete_failures",
+			Name: "nlroute_syncd_appl_db_delete_failures",
 			Help: "The total number APPL_DB delete fails",
 		}),
 	}
