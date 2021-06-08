@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/onmetal/sonic-nlroute-syncd/pkg/appldb"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 )
@@ -89,5 +90,13 @@ func TestGetNexthops(t *testing.T) {
 		}
 
 		assert.Equal(t, test.expected, res, test.name)
+
+		prometheus.Unregister(rs.updateCounterAll)
+		prometheus.Unregister(rs.updateCounterNonDefaultTable)
+		prometheus.Unregister(rs.updateCounterNew)
+		prometheus.Unregister(rs.updateCounterDelete)
+		prometheus.Unregister(rs.getNexthopFailures)
+		prometheus.Unregister(rs.appldbAddFailures)
+		prometheus.Unregister(rs.appldbDeleteFailures)
 	}
 }

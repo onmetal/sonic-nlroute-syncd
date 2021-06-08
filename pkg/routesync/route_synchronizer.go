@@ -40,40 +40,46 @@ type RouteSynchronizer struct {
 
 // New creates a new RouteSynchronizer
 func New(appldb APPLDB) *RouteSynchronizer {
-	return &RouteSynchronizer{
+	rr := &RouteSynchronizer{
 		rc:             make(chan netlink.RouteUpdate),
 		appldb:         appldb,
 		stopCh:         make(chan struct{}),
 		ifNameResolver: &ifNameResolverNetlink{},
-		updateCounterAll: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_updates_all",
-			Help: "The total number of processed route updates",
-		}),
-		updateCounterNonDefaultTable: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_updates_non_default_table",
-			Help: "The total number updates for non default table (ignored)",
-		}),
-		updateCounterNew: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_updates_new",
-			Help: "The total number updates creating routes",
-		}),
-		updateCounterDelete: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_updates_delete",
-			Help: "The total number updates deleting routes",
-		}),
-		getNexthopFailures: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_get_nexthop_failures",
-			Help: "The total number getNexthops() fails",
-		}),
-		appldbAddFailures: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_appl_db_add_failures",
-			Help: "The total number APPL_DB add fails",
-		}),
-		appldbDeleteFailures: promauto.NewCounter(prometheus.CounterOpts{
-			Name: "nlroute_syncd_appl_db_delete_failures",
-			Help: "The total number APPL_DB delete fails",
-		}),
 	}
+
+	rr.initializeMetrics()
+	return rr
+}
+
+func (rr *RouteSynchronizer) initializeMetrics() {
+	rr.updateCounterAll = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "nlroute_syncd_updates_all",
+		Help: "The total number of processed route updates",
+	})
+	rr.updateCounterNonDefaultTable = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "nlroute_syncd_updates_non_default_table",
+		Help: "The total number updates for non default table (ignored)",
+	})
+	rr.updateCounterNew = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "nlroute_syncd_updates_new",
+		Help: "The total number updates creating routes",
+	})
+	rr.updateCounterDelete = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "nlroute_syncd_updates_delete",
+		Help: "The total number updates deleting routes",
+	})
+	rr.getNexthopFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "nlroute_syncd_get_nexthop_failures",
+		Help: "The total number getNexthops() fails",
+	})
+	rr.appldbAddFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "nlroute_syncd_appl_db_add_failures",
+		Help: "The total number APPL_DB add fails",
+	})
+	rr.appldbDeleteFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "nlroute_syncd_appl_db_delete_failures",
+		Help: "The total number APPL_DB delete fails",
+	})
 }
 
 // Start starts the synchronizer
