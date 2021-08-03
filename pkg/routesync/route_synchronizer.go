@@ -179,7 +179,12 @@ func (rr *RouteSynchronizer) run() {
 func (rr *RouteSynchronizer) addRoute(r *netlink.Route) {
 	nexthops, err := rr.getNexthops(r)
 	if err != nil {
-		log.WithError(err).Error("Unable to get nexthops")
+		log.WithError(err).WithFields(log.Fields{
+			"dst":        r.Dst.String(),
+			"gw:":        r.Gw,
+			"linkIndex":  r.LinkIndex,
+			"ilinkIndex": r.ILinkIndex,
+		}).Error("Unable to get nexthops")
 		return
 	}
 
