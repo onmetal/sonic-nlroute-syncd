@@ -1,0 +1,12 @@
+[Unit]
+Description=netlink route sync
+Requires=database.service
+After=database.service
+Before=bird.service
+
+[Service]
+ExecStart=/usr/local/bin/sonic-nlroute-syncd
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
